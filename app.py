@@ -142,8 +142,8 @@ def load_and_prepare(uploaded_bytes: bytes, datetime_col: str, target_col: str) 
 
     # --- Chronological 80/20 split ---
     split_idx = int(len(df) * 0.8)
-    train = df.iloc[:split_idx]
-    test = df.iloc[split_idx:]
+    train = df.iloc[:split_idx].reset_index(drop=True)
+    test = df.iloc[split_idx:].reset_index(drop=True)
 
     return {
         "df": df,
@@ -439,11 +439,23 @@ with tab_actual:
     test = data["test"]
     preds = results[model_choice]["preds"]
 
+    actual_x = test[dt_col].to_numpy()
+    actual_y = test[target_col].to_numpy()
+    pred_y = np.asarray(preds)
+
+    if not (len(actual_x) == len(actual_y) == len(pred_y)):
+        st.error(
+            f"Data length mismatch — Actual x: {len(actual_x)}, "
+            f"Actual y: {len(actual_y)}, Predicted: {len(pred_y)}. "
+            "Cannot render comparison chart."
+        )
+        st.stop()
+
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
-            x=test[dt_col],
-            y=test[target_col],
+            x=actual_x,
+            y=actual_y,
             mode="lines",
             name="Actual",
             line=dict(color=ACCENT_BLUE, width=2),
@@ -451,8 +463,8 @@ with tab_actual:
     )
     fig.add_trace(
         go.Scatter(
-            x=test[dt_col],
-            y=preds,
+            x=actual_x,
+            y=pred_y,
             mode="lines",
             name=f"Predicted ({model_choice})",
             line=dict(color=ACCENT_AMBER, width=2, dash="dash"),
